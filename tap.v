@@ -148,15 +148,16 @@ module tap #(
 	assign clkConfig 	= (IRout == program & tstate == idle_c) ? tck : 1'b1;
 	assign dataInConfig = (IRout == program) ? tdi : 1'b1;
 
-	always @(posedge enableCtr) begin
-		tap_por <= 1'b0;
-		resetConfig <= 1'b0;
-	end
-
-	always @(tck) begin
-		tap_por <= 1'b1;
-		if (tstate == updateir_c) 
-			resetConfig <= 1'b1;
+	always @(enableCtr, tck) begin
+		if (enableCtr) begin
+			tap_por <= 1'b0;
+			resetConfig <= 1'b0;
+		end
+		else begin
+			tap_por <= 1'b1;
+			if (tstate == updateir_c) 
+				resetConfig <= 1'b1;
+		end
 	end
 
 	// tdo mux

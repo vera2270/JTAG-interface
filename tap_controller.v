@@ -4,7 +4,7 @@ module tap_controller (
 			tms,
 			tap_por,
 			enableIn,
-	output reg [3:0] tstate = tlreset,
+	output reg [3:0] tstate,
 	output reg	enable,
 			reset,
 			tselect,
@@ -39,6 +39,10 @@ module tap_controller (
 
 	reg [3:0] state_current; 
 	reg [3:0] state_next;
+
+	initial begin
+		tstate = tlreset;
+	end
 
 	always @(tms, state_current) begin
 		if (enableIn) begin

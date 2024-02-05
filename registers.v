@@ -9,12 +9,11 @@ module instruction_register_cell (
 	
 	reg s1;
 
-	always @(posedge clkIR) begin
-		s1 <= (shIR == 1'b0) ? piData : preData;
-	end
-
-	always @(negedge clkIR) begin
-		dataNex <= s1;
+	always @(clkIR) begin
+		if (clkIR)
+			s1 <= (shIR == 1'b0) ? piData : preData;
+		else 
+			dataNex <= s1;
 	end
 endmodule
 
@@ -36,7 +35,11 @@ module instruction_register #(
 	`include "constants.vh"
 
 	wire [reg_len:0] data;
-	reg [instr_num-1:0] instr_data = 0;
+	reg [instr_num-1:0] instr_data;
+
+	initial begin
+		instr_data = 0;
+	end
 
 	assign data[0] = tdi;
 	assign tdo_mux = data[reg_len];
@@ -67,15 +70,12 @@ module instruction_register #(
 		end
 	end
 
-	always @(reset) begin
+	always @(reset, upIR) begin
 		if (reset == 1'b0) begin
 			instrB <= 0;
 			instrB[0] <= 1'b1;
 		end 
-	end
-
-	// clocked instruction bits output
-	always @(negedge upIR) begin
-		instrB <= instr_data;
+		else if (~upIR)	// clocked instruction bits output
+			instrB <= instr_data;
 	end
 endmodule

@@ -9,13 +9,12 @@ module reg_bypass (
 
 	reg s1;
 
-	always @(posedge clkDR) begin
-		s1 <= data_in;
+	always @(clkDR) begin
+		if (clkDR)
+			s1 <= data_in;
+		else
+			data_out <= s1;
 	end
-
-	always @(negedge clkDR) begin
-		data_out <= s1;
-	end	
 endmodule
 
 
@@ -85,8 +84,13 @@ module bsr_cell ( // BC_1 with reset and enable
 );
 
 	wire s1;
-	reg s2 = 1'b0;
-	reg s3 = 1'b0;
+	reg s2;
+	reg s3;
+
+	initial begin
+		s2 = 1'b0;
+		s3 = 1'b0;
+	end
 
 	assign nextCell = (reset == 1'b1) ? s2 : 1'b0;
 
@@ -97,71 +101,71 @@ module bsr_cell ( // BC_1 with reset and enable
 	assign data_pout = 	(mode == 1'b0 & enableOut == 1'b1) ? data_pin : 
 						(mode == 1'b1 & enableOut == 1'b1) ? s3 : 1'b0;
 
-	always @(posedge reset) begin
-		s2 <= 1'b0;
-		s3 <= 1'b0;
-	end
-	always @(negedge clkDR) begin
-		s2 <= s1;
-	end
-	always @(posedge updateDR) begin
-		s3 <= s2;
+	always @(posedge reset, negedge clkDR, posedge updateDR) begin
+		if (reset) begin
+			s2 <= 1'b0;
+			s3 <= 1'b0;
+		end
+		else if (~clkDR)
+			s2 <= s1;
+		else if (updateDR)
+			s3 <= s2;
 	end
 endmodule
 
 
-// module bsr_cell_io ( // BC_2 control and BC_7 data for bidirectional pin
-// 	input 	output_en,
-// 			output_data,
-// 			prevCell,
-// 			mode_2,
-// 			mode_5,
-// 			mode_6,
-// 			shiftDR,
-// 			clockDR,
-// 			updateDR,
-// 	output 	input_data,
-// 			nextCell,
-// 	inout 	system_pin
-// );
+/* module bsr_cell_io ( // BC_2 control and BC_7 data for bidirectional pin
+	input 	output_en,
+			output_data,
+			prevCell,
+			mode_2,
+			mode_5,
+			mode_6,
+			shiftDR,
+			clockDR,
+			updateDR,
+	output 	input_data,
+			nextCell,
+	inout 	system_pin
+);
 	
-// 	reg c_en1, c_en2, c_en, c_in, c_next_Cell;
-// 	reg d_out, d_out2, d_sel1, d_s1, d_s2, d_s3, d_sys_in;
+	reg c_en1, c_en2, c_en, c_in, c_next_Cell;
+	reg d_out, d_out2, d_sel1, d_s1, d_s2, d_s3, d_sys_in;
 
-// 	// control cell
-// 	assign c_en1 = (mode_5 == 1'b0) ? output_en : c_en2;
-// 	assign c_en  = c_en1 & mode_6;
-// 	assign c_in  = (shiftDR == 1'b0) ? c_en1 : d_s3;
+	// control cell
+	assign c_en1 = (mode_5 == 1'b0) ? output_en : c_en2;
+	assign c_en  = c_en1 & mode_6;
+	assign c_in  = (shiftDR == 1'b0) ? c_en1 : d_s3;
 
-// 	assign nextCell = c_next_Cell;
-// 	always @(posedge clockDR) begin
-// 		c_next_Cell <= c_in;
-// 	end
+	assign nextCell = c_next_Cell;
+	always @(posedge clockDR) begin
+		c_next_Cell <= c_in;
+	end
 
-// 	always @(posedge updateDR) begin
-// 		c_en2 <= c_next_Cell;
-// 	end
+	always @(posedge updateDR) begin
+		c_en2 <= c_next_Cell;
+	end
 
-// 	// combined input and output cell
-// 	assign d_out	= (mode_5 == 1'b0) ? output_data : d_out2;
-// 	assign d_sys_in = (mode_2 == 1'b0) ? system_pin : d_out2;
-// 	assign d_sel1	= c_en1 & ~mode_5;
-// 	assign d_s1	= (d_sel1 == 1'b0) ? d_sys_in : d_out;
-// 	assign d_s2	= (shiftDR == 1'b0) ? d_s1 : prevCell;
+	// combined input and output cell
+	assign d_out	= (mode_5 == 1'b0) ? output_data : d_out2;
+	assign d_sys_in = (mode_2 == 1'b0) ? system_pin : d_out2;
+	assign d_sel1	= c_en1 & ~mode_5;
+	assign d_s1	= (d_sel1 == 1'b0) ? d_sys_in : d_out;
+	assign d_s2	= (shiftDR == 1'b0) ? d_s1 : prevCell;
 
-// 	always @(posedge clockDR) begin
-// 		d_s3 <= d_s2;
-// 	end
+	always @(posedge clockDR) begin
+		d_s3 <= d_s2;
+	end
 
-// 	always @(posedge updateDR) begin
-// 		d_out2 <= d_s3;
-// 	end
+	always @(posedge updateDR) begin
+		d_out2 <= d_s3;
+	end
 
-// 	assign input_data = d_sys_in;
+	assign input_data = d_sys_in;
 	
-// 	// enable output
-// 	assign system_pin = (c_en == 1'b1) ? d_out : z;
-// endmodule
+	// enable output
+	assign system_pin = (c_en == 1'b1) ? d_out : z;
+endmodule */
 
 
 module bsreg #(
