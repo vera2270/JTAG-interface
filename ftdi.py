@@ -1,87 +1,228 @@
-import asyncio
 import board
 import digitalio
+from enum import Enum
 import pathlib
 import time
 
-clock_half_period = 0.000005 # [s] 10 ns = 0.010 ms = 0.000010 s
-falling_edge = asyncio.Event()
-rising_edge = asyncio.Event()
+clock_half_period = 0.0005 # [s] 10 ns = 0.010 ms = 0.000010 s
 send = "1111101010110001" # 0xFAB1
 end = "1111101010110000" # 0xFAB0
 
+class Instruction(Enum):
+	BYPASS = "000"
+	IDCODE = "001"
+	SAMPLE = "010"
+	PRELOAD = "010"
+	EXTEST = "100"
+	INTEST = "110"
+	PROGRAM = "101"
 
-async def clock(delay: int, tck: digitalio.DigitalInOut):
-	while True:
-		tck.value = False
-		falling_edge.set()
-		await asyncio.sleep(delay)
-		tck.value = True
-		rising_edge.set()
-		await asyncio.sleep(delay)
+class State(Enum):
+	TLRESET = "F"
+	IDLE = "C"
+	SELECTDR = "7"
+	CAPTUREDR = "6"
+	SHIFTDR = "2"
+	EXIT1DR = "1"
+	PAUSEDR = "3"
+	EXIT2DR = "0"
+	UPDATEDR = "5"
+	SELECTIR = "4"
+	CAPTUREIR = "E"
+	SHIFTIR = "A"
+	EXIT1IR = "9"
+	PAUSEIR = "8"
+	EXIT2IR = "B"
+	UPDATEIR = "D"
 
-async def load_config(data: list, tms: digitalio.DigitalInOut, tdi: digitalio.DigitalInOut):
-	# setup 
-	await falling_edge.wait()
-	tms.value = False
-	await falling_edge.wait()
-	tms.value = True
-	await falling_edge.wait()
-	tms.value = True
-	await falling_edge.wait()
-	tms.value = False
-	await falling_edge.wait()
-	tms.value = False
-	await falling_edge.wait()
-	# load instruction program
-	tdi.value = True
-	await falling_edge.wait()
-	tdi.value = False
-	await falling_edge.wait()
-	tdi.value = True
-	await falling_edge.wait()
-	tdi.value = True
-	# 
-	tms.value = True
-	await falling_edge.wait()
-	tms.value = True
-	await falling_edge.wait()
-	tms.value = False
-	await falling_edge.wait()
-	tms.value = False
-	for chunk in data[0]:
-		binary = '{0:032b}'.format(chunk)
-		for i in range(32):
-			tdi.value = binary[i]
-			if i > 15:
-				tms.value = send[i-16]
-			else:
-				tms.value = False
-			await falling_edge.wait()
-	tdi.value = True
-	for i in range(16):
-		tms.value = end[i]
-		await falling_edge.wait()
-	tms.value = True
+class TapStateMachine:	
+	def __init__(self, state=State.TLRESET):
+		self.current_state = state
 
+	def set_state(self, state: State):
+		self.current_state = state
 
-async def jtag():
-	data = read_binary_file(pathlib.Path("sequential_16bit_en.bin"))
+	def next_state(self, tms_in: int):
+		match self.current_state.name:
+			case "TLRESET":
+				if tms_in == 0:
+					self.current_state = State.IDLE
+			case "IDLE":
+				if tms_in == 1:
+					self.current_state = State.SELECTDR
+			case "SELECTDR":
+				if tms_in == 0:
+					self.current_state = State.SELECTIR
+				elif tms_in == 1:
+					self.current_state = State.CAPTUREDR
+			case "CAPTUREDR":
+				if tms_in == 0:
+					self.current_state = State.SHIFTDR
+				elif tms_in == 1:
+					self.current_state = State.EXIT1DR
+			case "SHIFTDR":
+				if tms_in == 1:
+					self.current_state = State.EXIT1DR
+			case "EXIT1DR":
+				if tms_in == 0:
+					self.current_state = State.PAUSEDR
+				elif tms_in == 1:
+					self.current_state = State.UPDATEDR
+			case "PAUSEDR":
+				if  tms_in == 1:
+					self.current_state = State.EXIT2DR
+			case "EXIT2DR":
+				if tms_in == 0:
+					self.current_state = State.SHIFTDR
+				elif tms_in == 1:
+					self.current_state = State.UPDATEDR
+			case "UPDATEDR":
+				if tms_in == 0:
+					self.current_state = State.IDLE
+				elif tms_in == 1:
+					self.current_state = State.SELECTDR
+			case "SELECTIR":
+				if tms_in == 0:
+					self.current_state = State.CAPTUREIR
+				elif tms_in == 1:
+					self.current_state = State.TLRESET
+			case "CAPTUREIR":
+				if tms_in == 0:
+					self.current_state = State.SHIFTIR
+				elif tms_in == 1:
+					self.current_state = State.EXIT1IR
+			case "SHIFTIR":
+				if tms_in == 1:
+					self.current_state = State.EXIT1IR
+			case "EXIT1IR":
+				if tms_in == 0:
+					self.current_state = State.PAUSEIR
+				elif tms_in == 1:
+					self.current_state = State.UPDATEIR
+			case "PAUSEIR":
+				if tms_in == 1:
+					self.current_state = State.EXIT2IR
+			case "EXIT2IR":
+				if tms_in == 0:
+					self.current_state = State.SHIFTIR
+				elif tms_in == 1:
+					self.current_state = State.UPDATEIR
+			case "UPDATEIR":
+				if tms_in == 0:
+					self.current_state = State.IDLE
+				elif tms_in == 1:
+					self.current_state = State.SELECTDR
 
-	tck = digitalio.DigitalInOut(board.D0)
-	tck.direction = digitalio.Direction.OUTPUT
-	tdi = digitalio.DigitalInOut(board.D1)
-	tdi.direction = digitalio.Direction.OUTPUT
-	tdo = digitalio.DigitalInOut(board.D2)
-	tdo.direction = digitalio.Direction.INPUT
-	tms = digitalio.DigitalInOut(board.D4)
-	tms.direction = digitalio.Direction.OUTPUT
+class JTAG:
+	def __init__(self):
+		self.tck = digitalio.DigitalInOut(board.D4)
+		self.tck.direction = digitalio.Direction.OUTPUT
+		self.tdi = digitalio.DigitalInOut(board.D5)
+		self.tdi.direction = digitalio.Direction.OUTPUT
+		self.tdo = digitalio.DigitalInOut(board.D6)
+		self.tdo.direction = digitalio.Direction.INPUT
+		self.tms = digitalio.DigitalInOut(board.D7)
+		self.tms.direction = digitalio.Direction.OUTPUT
+		self.tck.value = True
+		self.tdi.value = True
+		self.tms.value = True
+		
+		self.controller = TapStateMachine()
 
-	tck_task = asyncio.create_task(clock(clock_half_period, tck))
+	def next_state(self, tms_in: bool):
+		self.tms.value = tms_in
+		self.controller.next_state(tms_in)
+		clock(self.tck)
 
-	await load_config(data, tms, tdi)
-	await asyncio.sleep(clock_half_period*10)
-	tck_task.cancel()
+	def load_instruction(self, instruction: Instruction, end_selectDR: bool = False):
+		clock(self.tck)
+		if self.controller.current_state.name == "TLRESET":
+			self.next_state(False) # IDLE
+		if self.controller.current_state.name == "IDLE":
+			self.next_state(True) # SELECTDR
+		assert self.controller.current_state.name == "SELECTDR"
+		self.next_state(True) # SELECTIR
+		self.next_state(False) # CAPTUREIR
+		self.next_state(False) # SHIFTIR
+		for bit in instruction.value:
+			self.tdi.value = bool(bit)
+			clock(self.tck)
+		self.tdi.value = True
+		self.next_state(True) # EXIT1IR
+		self.next_state(True) # UPDATEIR
+		if end_selectDR:
+			self.next_state(True) # SELECTDR
+		else:
+			self.next_state(False) # IDLE
+   
+	def exec_instruction(self, data: list, end_selectDR: bool = False):
+		if data == Instruction.IDCODE.name:
+			data = [0 for _ in range(32)]
+		clock(self.tck)
+		if self.controller.current_state.name == "IDLE":
+			self.next_state(True) # SELECTDR
+		assert self.controller.current_state.name == "SELECTDR"
+		self.next_state(False) # CAPTUREDR
+		self.next_state(False) # SHIFTDR
+		for bit in data:
+			self.tdi.value = bool(bit)
+			clock(self.tck)
+		self.tdi.value = True
+		self.next_state(True) # EXIT1DR
+		self.next_state(True) # UPDATEDR
+		if end_selectDR:
+			self.next_state(True) # SELECTDR
+		else:
+			self.next_state(False) # IDLE
+   
+	def load_and_exec(self, instruction: Instruction, data: list, end_selectDR: bool = False):
+		self.load_instruction(instruction, end_selectDR)
+		self.exec_instruction(data, end_selectDR)
+  
+	def reset(self):
+		if self.controller.current_state.name == "IDLE":
+			self.next_state(True) # SELECTDR
+		if self.controller.current_state.name == "SELECTDR":
+			self.next_state(True) # SELECTIR
+		if self.controller.current_state.name == "SELECTIR":
+			self.next_state(True) # TLRESET
+		assert self.controller.current_state.name == "TLRESET"
+		self.next_state(True) # TLRESET
+  
+	def load_config(self, data: list):
+		self.load_instruction(Instruction.PROGRAM)
+		for chunk in data:
+			for bytes in chunk:
+				binary = '{0:032b}'.format(bytes)
+				for i in range(32):
+					self.tdi.value = binary[i]
+					if i > 15:
+						self.tms.value = send[i-16]
+					else:
+						self.tms.value = False
+					clock(self.tck)
+		self.tdi.value = True
+		for i in range(16):
+			self.tms.value = end[i]
+			clock(self.tck)
+		self.tms.value = True
+	
+
+def clock_posedge(tck: digitalio.DigitalInOut):
+	tck.value = True
+	time.sleep(clock_half_period)
+
+def clock_negedge(tck: digitalio.DigitalInOut):
+    tck.value = False
+    time.sleep(clock_half_period)
+	
+def clock(tck: digitalio.DigitalInOut):
+    tck.value = False
+    time.sleep(clock_half_period)
+    tck.value = True
+    time.sleep(clock_half_period)
+    # print("clock")
+
 
 def read_binary_file(filename: pathlib.Path) -> list:
 	chunk_size = 4
@@ -93,15 +234,7 @@ def read_binary_file(filename: pathlib.Path) -> list:
 			bits = f.read(chunk_size)
 	return data
 
-def blinky():
-	led = digitalio.DigitalInOut(board.C0)
-	led.direction = digitalio.Direction.OUTPUT
-
-	while True:
-		led.value = True
-		time.sleep(0.5)
-		led.value = False
-		time.sleep(0.5)
-
 if __name__ == '__main__':
-	asyncio.run(jtag())
+	jtag_i = JTAG()
+	data = read_binary_file(pathlib.Path("sequential_16bit_en.bin"))
+	jtag_i.load_config(data)
