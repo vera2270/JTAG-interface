@@ -125,7 +125,7 @@ module tap_controller (
 		end
 	end
 
-	assign reset = (state_current == tlreset) ? 1'b0 : 1'b1;
+	assign reset = (state_current == tlreset) ? 1'b0 : trst;
 
 	always @(negedge clk) begin
 		case (state_current)
