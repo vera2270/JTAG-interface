@@ -1784,6 +1784,7 @@ class FabricGenerator:
         self.writer.addPortScalar("tms", IO.INPUT, indentLevel=2)
         self.writer.addPortScalar("tdi", IO.INPUT, indentLevel=2)
         self.writer.addPortScalar("tdo", IO.OUTPUT, indentLevel=2)
+        self.writer.addPortScalar("tck", IO.INPUT, indentLevel=2)
         self.writer.addPortEnd()
         self.writer.addHeaderEnd(f"{self.fabric.name}_top")
         self.writer.addDesignDescriptionStart(f"{self.fabric.name}_top")
@@ -1858,10 +1859,11 @@ class FabricGenerator:
         self.writer.addNewLine()
         self.writer.addInstantiation(compName="tap",
                                      compInsName="tap_inst",
-                                     portsPairs=[("tck", "CLK"),
+                                     portsPairs=[("tck", "tck"),
                                                  ("tms", "tms"),
                                                  ("tdi", "tdi"),
                                                  ("tdo", "tdo"),
+                                                 ("trst", "resetn"),
                                                  ("pins_in", "pins_in"),
                                                  ("pins_out", "pins_out"),
                                                  ("logic_pins_in", "sys_pins_in"),

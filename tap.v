@@ -1,12 +1,13 @@
 
 module tap #(
-	parameter instr_num = len_instruction,
+	parameter instr_num = 5,
 	parameter bsregInLen = 4,
 	parameter bsregOutLen = 4
 ) (
 	input 	tck,
 			tms,
 			tdi,
+	input   trst,
 	output	tdo,
 	input [bsregInLen-1:0] pins_in,
 	output [bsregOutLen-1:0] pins_out,
@@ -18,10 +19,8 @@ module tap #(
 );
 	`include "constants.vh"
 
-	reg tap_por;
-
 	wire [3:0] tstate;
-	wire reset, enableCtr, tselect, enable, clkIR, captureIR, shiftIR, updateIR, clkDR, captureDR, shiftDR, updateDR;
+	wire reset, tselect, enable, clkIR, captureIR, shiftIR, updateIR, clkDR, captureDR, shiftDR, updateDR;
 
 	wire [ireg_length-1:0] IRdata_pin;
 	wire [instr_num-1:0] IRout;
@@ -40,7 +39,7 @@ module tap #(
 	wire shiftID, idOut;
 	wire drTdoMux;
 
-	wire clkConfig, dataInConfig, resetOutConfig, strobeConfig, jtagActive;
+	wire clkConfig, dataInConfig, configFinished, strobeConfig, jtagActive;
 	reg resetConfig;
 	wire [31:0] dataOutConfig;
 
@@ -48,8 +47,7 @@ module tap #(
 	tap_controller tap_controller_I (
 		.clk (tck),
 		.tms (tms),
-		.tap_por (tap_por),
-		.enableIn (enableCtr),
+		.trst (trst),
 		.tstate (tstate),
 		.reset (reset),
 		.tselect (tselect),
@@ -128,9 +126,8 @@ module tap #(
 	config_jtag config_I (
 		.clk (clkConfig),
 		.reset (resetConfig),
-		.tms (tms),
 		.data_in (dataInConfig),
-		.resetOut (resetOutConfig),
+		.finished (configFinished),
 		.data_out (dataOutConfig),
 		.strobe (strobeConfig)
 	);
@@ -143,21 +140,15 @@ module tap #(
 
 	assign shiftID 		= (IRout == idcode) ? shiftDR : 1'b1;
 
-	assign jtagActive 	= ~enableCtr;
-	assign enableCtr 	= (resetOutConfig == 1'b0 & tstate == idle_c & IRout == program) ? 1'b0 : 1'b1;
+	assign jtagActive 	= (configFinished == 1'b0 & tstate == idle_c & IRout == program) ? 1'b1 : 1'b0;
 	assign clkConfig 	= (IRout == program & tstate == idle_c) ? tck : 1'b1;
 	assign dataInConfig = (IRout == program) ? tdi : 1'b1;
-
-	always @(enableCtr, tck) begin
-		if (enableCtr) begin
-			tap_por <= 1'b0;
+	
+	always @(tstate, trst) begin
+		if (~trst | tstate == selectdr_c)
 			resetConfig <= 1'b0;
-		end
-		else begin
-			tap_por <= 1'b1;
-			if (tstate == updateir_c) 
-				resetConfig <= 1'b1;
-		end
+	    else
+			resetConfig <= 1'b1;
 	end
 
 	// tdo mux

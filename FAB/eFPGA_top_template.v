@@ -28,7 +28,8 @@ module eFPGA_top (${uio_list}CLK, resetn, SelfWriteStrobe, SelfWriteData, Rx, Co
 	// JTAG port
 	input wire tms;
 	input wire tdi;
-	input wire tdo;
+	output wire tdo;
+	input wire tck;
 
 ${uio_wires}
 
@@ -52,10 +53,11 @@ ${uio_wires}
 	wire JTAGActive;
 
 	tap Inst_jtag (
-		.tck(CLK),
+		.tck(tck),
 		.tms(tms),
 		.tdi(tdi),
 		.tdo(tdo),
+		.trst(resetn),
 		.pins_in(pins_in),
 		.pins_out(pins_out),
 		.logic_pins_in(sys_pins_in),

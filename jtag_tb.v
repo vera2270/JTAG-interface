@@ -7,6 +7,7 @@ module jtag_tb;
 	reg tck = 1'b1;
 	reg tms = 1'b1;
 	reg tdi = 1'b1;
+	reg trst = 1'b1;
 	wire tdo;
 
 	reg [pins_in_count-1:0] pins_in = 4'b0100;
@@ -23,6 +24,7 @@ module jtag_tb;
 		.tms(tms),
 		.tdi(tdi),
 		.tdo(tdo),
+		.trst(trst),
 		.pins_in(pins_in),
 		.pins_out(pins_out),
 		.logic_pins_in(logic_pins_in),
@@ -38,7 +40,6 @@ module jtag_tb;
 
 	integer i, j, k;
 	reg [15:0] send = 16'hFAB1;
-	reg [31:0] sendex = 32'hFFFFFAB1;
     reg [15:0] endconf = 16'hFAB0;
 	reg [7:0] bitstream[0:15];
 
@@ -351,33 +352,34 @@ module jtag_tb;
 		@(negedge tck);
 		tms = 1'b0;
 		@(negedge tck);
-		tms = 1'b0;
+		tms = 1'b0; // stay in run-test/idle state
 		// @(negedge tck);
-		//
-		// tms = 1'b1; // select DR
 		for (i = 0; i < 4; i = i+1) begin
 			for (j = 0; j < 4; j = j+1) begin
 				for (k = 0; k < 8; k = k+1) begin
-					tms = 1'b0;
 					tdi = bitstream[4*i+j][7-k];
-					if (8*j+k > 14)
-						tms = send[31 - (8*j+k)];
 					@(negedge tck);
 				end
 			end
+			for (k = 0; k < 16; k = k+1) begin
+				tdi = send[15-k];
+				@(negedge tck);
+			end
 		end
+		for (k = 0; k < 16; k = k+1) begin
+			tdi = endconf[15-k];
+			@(negedge tck);
+		end
+
 		tdi = 1'b1;
-        for (i = 0; i < 16; i = i+1) begin
-            tms = endconf[15-i];
-            @(negedge tck);
-        end
-		tms = 1'b1;
+		repeat (50) @(posedge tck);
+		@(negedge tck);
 
 		///////////////////////////////////////
 
 		// setup jtag
-		tms = 1'b0;
-		@(negedge tck);
+		// tms = 1'b0;
+		// @(negedge tck);
 		tms = 1'b1;
 		@(negedge tck);
 		tms = 1'b1;
@@ -444,7 +446,7 @@ module jtag_tb;
 		tms = 1'b1; // reset
 		@(negedge tck);
 
-		repeat (10) @(posedge tck);
+		repeat (50) @(posedge tck);
 
 		$finish;
 	end
