@@ -126,6 +126,10 @@ class JTAG:
 		self.tck.value = True
 		self.tdi.value = True
 		self.tms.value = True
+  
+		print("press reset button, 10 sec timer starting now")
+		clock_for(self.tck, 10)
+		print("starting transfer")
 		
 		self.controller = TapStateMachine()
 
@@ -145,7 +149,7 @@ class JTAG:
 		self.next_state(False) # CAPTUREIR
 		self.next_state(False) # SHIFTIR
 		for bit in instruction.value:
-			self.tdi.value = bool(bit)
+			self.tdi.value = int(bit)
 			clock(self.tck)
 		self.tdi.value = True
 		self.next_state(True) # EXIT1IR
@@ -191,21 +195,21 @@ class JTAG:
   
 	def load_config(self, data: list):
 		self.load_instruction(Instruction.PROGRAM)
+		# in run-test / idle state
 		for chunk in data:
 			for bytes in chunk:
 				binary = '{0:032b}'.format(bytes)
 				for i in range(32):
-					self.tdi.value = binary[i]
-					if i > 15:
-						self.tms.value = send[i-16]
-					else:
-						self.tms.value = False
+					self.tdi.value = int(binary[i])
 					clock(self.tck)
-		self.tdi.value = True
+			for i in range(16):
+				self.tdi.value = int(send[i])
+				clock(self.tck)
 		for i in range(16):
-			self.tms.value = end[i]
+			self.tdi.value = int(end[i])
 			clock(self.tck)
-		self.tms.value = True
+		self.tdi.value = True
+		# self.tms.value = True
 	
 
 def clock_posedge(tck: digitalio.DigitalInOut):
@@ -222,6 +226,12 @@ def clock(tck: digitalio.DigitalInOut):
     tck.value = True
     time.sleep(clock_half_period)
     # print("clock")
+    
+def clock_for(tck: digitalio.DigitalInOut, duration: int):
+	start = time.time()
+	stop = start + duration # duration in seconds
+	while time.time() < stop:
+		clock(tck)
 
 
 def read_binary_file(filename: pathlib.Path) -> list:
@@ -235,6 +245,9 @@ def read_binary_file(filename: pathlib.Path) -> list:
 	return data
 
 if __name__ == '__main__':
+	# data = read_binary_file(pathlib.Path("sequential_16bit_en.bin"))
 	jtag_i = JTAG()
-	data = read_binary_file(pathlib.Path("sequential_16bit_en.bin"))
-	jtag_i.load_config(data)
+	# jtag_i.load_config(data)
+	print("start tck")
+	clock_for(jtag_i.tck, 30)
+	print("stop tck")
