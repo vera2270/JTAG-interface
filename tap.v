@@ -1,6 +1,5 @@
 
 module tap #(
-	parameter instr_num = 5,
 	parameter bsregInLen = 4,
 	parameter bsregOutLen = 4
 ) (
@@ -23,7 +22,7 @@ module tap #(
 	wire reset, tselect, enable, clkIR, captureIR, shiftIR, updateIR, clkDR, captureDR, shiftDR, updateDR;
 
 	wire [ireg_length-1:0] IRdata_pin;
-	wire [instr_num-1:0] IRout;
+	wire [len_instruction-1:0] IRout;
 	wire IRtdi;
 	wire ir_tdo_mux;
 
@@ -64,7 +63,7 @@ module tap #(
 
 	assign IRdata_pin[ireg_length-1:1] = 0;
 	assign IRdata_pin[0] = 1'b1;
-	instruction_register ir_I (
+	instruction_register #(.reg_len(ireg_length), .instr_num(len_instruction)) ir_I (
 		.clkIR (clkIR),
 		.upIR (updateIR),
 		.shIR (shiftIR),

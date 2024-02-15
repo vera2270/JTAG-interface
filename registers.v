@@ -19,8 +19,8 @@ endmodule
 
 
 module instruction_register #(
-	parameter reg_len = ireg_length,
-	parameter instr_num = len_instruction
+	parameter reg_len = 3,
+	parameter instr_num = 5
 ) (
 	input 	clkIR,
 			upIR,

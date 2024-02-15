@@ -1,5 +1,5 @@
 
-parameter id_data = 32'h0000_0001;
+parameter id_data = 32'h0000_0001; // LSB must be 1
 
 parameter len_instruction = 5;
 parameter ireg_length = 3;

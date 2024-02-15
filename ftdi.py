@@ -5,8 +5,8 @@ import pathlib
 import time
 
 clock_half_period = 0.0005 # [s] 10 ns = 0.010 ms = 0.000010 s
-send = "1111101010110001" # 0xFAB1
-end = "1111101010110000" # 0xFAB0
+send = "1111101010110010" # 0xFAB2
+end = "1111101010110011" # 0xFAB3
 
 class Instruction(Enum):
 	BYPASS = "000"
@@ -196,15 +196,16 @@ class JTAG:
 	def load_config(self, data: list):
 		self.load_instruction(Instruction.PROGRAM)
 		# in run-test / idle state
-		for chunk in data:
-			for bytes in chunk:
-				binary = '{0:032b}'.format(bytes)
-				for i in range(32):
+		for chunk in data: 
+			for byte in chunk:
+				binary = '{0:08b}'.format(byte)
+				for i in range(8):
 					self.tdi.value = int(binary[i])
 					clock(self.tck)
 			for i in range(16):
 				self.tdi.value = int(send[i])
 				clock(self.tck)
+    
 		for i in range(16):
 			self.tdi.value = int(end[i])
 			clock(self.tck)
@@ -221,10 +222,10 @@ def clock_negedge(tck: digitalio.DigitalInOut):
     time.sleep(clock_half_period)
 	
 def clock(tck: digitalio.DigitalInOut):
-    tck.value = False
     time.sleep(clock_half_period)
     tck.value = True
     time.sleep(clock_half_period)
+    tck.value = False
     # print("clock")
     
 def clock_for(tck: digitalio.DigitalInOut, duration: int):
@@ -245,9 +246,9 @@ def read_binary_file(filename: pathlib.Path) -> list:
 	return data
 
 if __name__ == '__main__':
-	# data = read_binary_file(pathlib.Path("sequential_16bit_en.bin"))
+	data = read_binary_file(pathlib.Path("sequential_16bit_en.bin"))
 	jtag_i = JTAG()
-	# jtag_i.load_config(data)
-	print("start tck")
-	clock_for(jtag_i.tck, 30)
-	print("stop tck")
+	jtag_i.load_config(data)
+	# print("start tck")
+	clock_for(jtag_i.tck, 10)
+	# print("stop tck")

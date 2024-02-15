@@ -39,8 +39,8 @@ module jtag_tb;
 
 
 	integer i, j, k;
-	reg [15:0] send = 16'hFAB1;
-    reg [15:0] endconf = 16'hFAB0;
+	reg [15:0] send = 16'hFAB2;
+    reg [15:0] endconf = 16'hFAB3;
 	reg [7:0] bitstream[0:15];
 
 	initial begin
