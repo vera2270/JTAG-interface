@@ -87,5 +87,6 @@ ${uio_wires}
 
 		.JTAGWriteData(JTAGWriteData),
 		.JTAGWriteStrobe(JTAGWriteStrobe),
-		.JTAGActive(JTAGActive)
+		.JTAGActive(JTAGActive),
+    	.tck(tck)
 	);

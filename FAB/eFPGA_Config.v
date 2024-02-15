@@ -1,4 +1,4 @@
-module eFPGA_Config (CLK, resetn, Rx, ComActive, ReceiveLED, s_clk, s_data, SelfWriteData, SelfWriteStrobe, ConfigWriteData, ConfigWriteStrobe, FrameAddressRegister, LongFrameStrobe, RowSelect, JTAGActive, JTAGWriteData, JTAGWriteStrobe);
+module eFPGA_Config (CLK, resetn, Rx, ComActive, ReceiveLED, s_clk, s_data, SelfWriteData, SelfWriteStrobe, ConfigWriteData, ConfigWriteStrobe, FrameAddressRegister, LongFrameStrobe, RowSelect, JTAGActive, JTAGWriteData, JTAGWriteStrobe, tck);
 	parameter NumberOfRows = 16;
 	parameter RowSelectWidth = 5;
 	parameter FrameBitsPerRow = 32;
@@ -40,10 +40,12 @@ module eFPGA_Config (CLK, resetn, Rx, ComActive, ReceiveLED, s_clk, s_data, Self
 	input [31:0] JTAGWriteData;
 	input JTAGWriteStrobe;
 	input JTAGActive;
+	input tck;
 	wire [31:0] JTAGWriteData_Mux;
 	wire JTAGWriteStrobe_Mux;
 	
 	wire FSM_Reset;
+	wire config_clk;
 
 	config_UART INST_config_UART (
 	.CLK(CLK),
@@ -82,6 +84,7 @@ module eFPGA_Config (CLK, resetn, Rx, ComActive, ReceiveLED, s_clk, s_data, Self
 	assign ConfigWriteStrobe = JTAGWriteStrobe_Mux;
 	
 	assign FSM_Reset = JTAGActive || UART_ComActive || BitBangActive;
+	assign config_clk = JTAGActive ? tck : CLK;
 
 	assign ComActive = UART_ComActive;
 	assign ReceiveLED = JTAGWriteStrobe^UART_LED^BitBangWriteStrobe;   
@@ -97,7 +100,7 @@ module eFPGA_Config (CLK, resetn, Rx, ComActive, ReceiveLED, s_clk, s_data, Self
 	.desync_flag(desync_flag)
 	)
 	ConfigFSM_inst
-	(.CLK(CLK),
+	(.CLK(config_clk),
 	.resetn(resetn),
 	.WriteData(JTAGWriteData_Mux),
 	.WriteStrobe(JTAGWriteStrobe_Mux),
