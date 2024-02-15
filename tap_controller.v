@@ -5,7 +5,7 @@ module tap_controller (
 			trst,
 	output reg [3:0] tstate,
 	output reg	enable, // enables output via tdo
-			tselect,
+			tselect,	// selects data register (0) or instruction register (1)
 			captureIR,
 			shiftIR,
 			captureDR,

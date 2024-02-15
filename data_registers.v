@@ -3,17 +3,13 @@ module reg_bypass (
 	input	data_in,
 			shiftDR,
 			clkDR,
-			captureDR,
 	output reg data_out
 );
 
-	reg s1;
+	wire s1 = data_in & shiftDR;
 
-	always @(clkDR) begin
-		if (clkDR)
-			s1 <= data_in;
-		else
-			data_out <= s1;
+	always @(posedge clkDR) begin
+		data_out <= s1;
 	end
 endmodule
 

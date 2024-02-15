@@ -110,7 +110,6 @@ module tap #(
 		.data_in (BPdataIn),
 		.shiftDR (shiftBP),
 		.clkDR (clkDR),
-		.captureDR (captureBP),
 		.data_out (BPdataOut)
 	);
 
