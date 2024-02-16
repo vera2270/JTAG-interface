@@ -1,4 +1,4 @@
-module eFPGA_top (${uio_list}CLK, resetn, SelfWriteStrobe, SelfWriteData, Rx, ComActive, ReceiveLED, s_clk, s_data, tms, tdi, tdo);
+module eFPGA_top (${uio_list}CLK, resetn, SelfWriteStrobe, SelfWriteData, Rx, ComActive, ReceiveLED, s_clk, s_data, tms, tdi, tdo, tck);
 
 	localparam include_eFPGA = 1;
 	localparam NumberOfRows = ${NumberOfRows};
@@ -43,12 +43,10 @@ ${uio_wires}
 	wire LocalWriteStrobe;
 	wire [RowSelectWidth-1:0] RowSelect;
 
-	// JTAG related
-	reg [3:0] pins_in = 0;
-	wire [3:0] pins_out;
-	wire [3:0] sys_pins_in;
-	reg [3:0] sys_pins_out = 0;
-	wire [31:0] JTAGWriteData;
+	 //JTAG related signals
+	wire[3:0] I_out;
+	wire[3:0] O_in;
+	wire[31:0] JTAGWriteData;
 	wire JTAGWriteStrobe;
 	wire JTAGActive;
 
@@ -58,10 +56,10 @@ ${uio_wires}
 		.tdi(tdi),
 		.tdo(tdo),
 		.trst(resetn),
-		.pins_in(pins_in),
-		.pins_out(pins_out),
-		.logic_pins_in(sys_pins_in),
-		.logic_pins_out(sys_pins_out),
+		.pins_in(O_top),
+		.pins_out(I_top),
+		.logic_pins_in(O_in),
+		.logic_pins_out(I_out),
 		.active(JTAGActive),
 		.config_data(JTAGWriteData),
 		.config_strobe(JTAGWriteStrobe)

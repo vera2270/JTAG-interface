@@ -126,20 +126,20 @@ class JTAG:
 		self.tck.value = True
 		self.tdi.value = True
 		self.tms.value = True
-  
-		print("press reset button, 10 sec timer starting now")
-		clock_for(self.tck, 10)
-		print("starting transfer")
+		print("initialized JTAG port")
+		print("1 sec timer starting now")
+		self.clock_for(1)
+		print("starting")
 		
 		self.controller = TapStateMachine()
 
 	def next_state(self, tms_in: bool):
 		self.tms.value = tms_in
 		self.controller.next_state(tms_in)
-		clock(self.tck)
+		self.clock()
 
 	def load_instruction(self, instruction: Instruction, end_selectDR: bool = False):
-		clock(self.tck)
+		self.clock()
 		if self.controller.current_state.name == "TLRESET":
 			self.next_state(False) # IDLE
 		if self.controller.current_state.name == "IDLE":
@@ -150,7 +150,8 @@ class JTAG:
 		self.next_state(False) # SHIFTIR
 		for bit in instruction.value:
 			self.tdi.value = int(bit)
-			clock(self.tck)
+			print("tdi: ", self.tdi.value)
+			self.clock()
 		self.tdi.value = True
 		self.next_state(True) # EXIT1IR
 		self.next_state(True) # UPDATEIR
@@ -162,15 +163,16 @@ class JTAG:
 	def exec_instruction(self, data: list, end_selectDR: bool = False):
 		if data == Instruction.IDCODE.name:
 			data = [0 for _ in range(32)]
-		clock(self.tck)
+		self.clock()
 		if self.controller.current_state.name == "IDLE":
 			self.next_state(True) # SELECTDR
 		assert self.controller.current_state.name == "SELECTDR"
 		self.next_state(False) # CAPTUREDR
 		self.next_state(False) # SHIFTDR
 		for bit in data:
-			self.tdi.value = bool(bit)
-			clock(self.tck)
+			self.tdi.value = int(bit)
+			print("tdi: ", self.tdi.value)
+			self.clock()
 		self.tdi.value = True
 		self.next_state(True) # EXIT1DR
 		self.next_state(True) # UPDATEDR
@@ -201,38 +203,39 @@ class JTAG:
 				binary = '{0:08b}'.format(byte)
 				for i in range(8):
 					self.tdi.value = int(binary[i])
-					clock(self.tck)
+					self.clock()
 			for i in range(16):
 				self.tdi.value = int(send[i])
-				clock(self.tck)
+				self.clock()
     
 		for i in range(16):
 			self.tdi.value = int(end[i])
-			clock(self.tck)
+			self.clock()
 		self.tdi.value = True
 		# self.tms.value = True
 	
 
-def clock_posedge(tck: digitalio.DigitalInOut):
-	tck.value = True
-	time.sleep(clock_half_period)
+	def clock_posedge(self):
+		self.tck.value = True
+		time.sleep(clock_half_period)
 
-def clock_negedge(tck: digitalio.DigitalInOut):
-    tck.value = False
-    time.sleep(clock_half_period)
-	
-def clock(tck: digitalio.DigitalInOut):
-    time.sleep(clock_half_period)
-    tck.value = True
-    time.sleep(clock_half_period)
-    tck.value = False
-    # print("clock")
-    
-def clock_for(tck: digitalio.DigitalInOut, duration: int):
-	start = time.time()
-	stop = start + duration # duration in seconds
-	while time.time() < stop:
-		clock(tck)
+	def clock_negedge(self):
+		self.tck.value = False
+		time.sleep(clock_half_period)
+		
+	def clock(self):
+		time.sleep(clock_half_period)
+		self.tck.value = True
+		print("tdo+: ", self.tdo.value)
+		time.sleep(clock_half_period)
+		self.tck.value = False
+		print("tdo-: ", self.tdo.value)
+		
+	def clock_for(self, duration: int):
+		start = time.time()
+		stop = start + duration # duration in seconds
+		while time.time() < stop:
+			self.clock()
 
 
 def read_binary_file(filename: pathlib.Path) -> list:
@@ -246,9 +249,20 @@ def read_binary_file(filename: pathlib.Path) -> list:
 	return data
 
 if __name__ == '__main__':
-	data = read_binary_file(pathlib.Path("sequential_16bit_en.bin"))
 	jtag_i = JTAG()
-	jtag_i.load_config(data)
-	# print("start tck")
-	clock_for(jtag_i.tck, 10)
-	# print("stop tck")
+	print("PRELOAD, 00111010")
+	jtag_i.load_and_exec(Instruction.PRELOAD, "00111010")
+	print("EXTEST, 00000000")
+	jtag_i.load_and_exec(Instruction.EXTEST, "00000000")
+	print("IDCODE")
+	jtag_i.load_and_exec(Instruction.IDCODE, Instruction.IDCODE.name)
+	print("INTEST, 11000101")
+	jtag_i.load_and_exec(Instruction.INTEST, "11000101")
+	print("BYPASS, 00111010")
+	jtag_i.load_and_exec(Instruction.BYPASS, "00111010")
+
+	# data_bin = read_binary_file(pathlib.Path("sequential_16bit_en.bin"))
+	# jtag_i.load_config(data_bin)
+	print("1 sec timer starting now")
+	jtag_i.clock_for(1)
+	print("timer ended")

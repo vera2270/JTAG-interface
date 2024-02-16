@@ -1816,10 +1816,17 @@ class FabricGenerator:
 
         self.writer.addNewLine()
         self.writer.addComment("JTAG related signals", onNewLine=True)
-        self.writer.addConnectionVector("pins_in", "3")
-        self.writer.addConnectionVector("pins_out", "3")
-        self.writer.addConnectionVector("sys_pins_in", "3")
-        self.writer.addConnectionVector("sys_pins_out", "3")
+        for name, group in sorted(portGroups.items(), key=lambda x:x[0]): 
+            if self.fabric.numberOfBRAMs > 0 and ("RAM2FAB" in name or "FAB2RAM" in name):
+                continue
+            if "I_top" in name:
+                self.writer.addConnectionVector("I_out", len(group[1])-1, 0, indentLevel=0)
+                BSR_out_length = len(group[1])
+            elif "O_top" in name:
+                self.writer.addConnectionVector("O_in", len(group[1])-1, 0, indentLevel=0)
+                BSR_in_length = len(group[1])
+        # self.writer.addConnectionVector("I_out", "3")
+        # self.writer.addConnectionVector("O_in", "3")
         self.writer.addConnectionVector("JTAGWriteData", 31)
         self.writer.addConnectionScalar("JTAGWriteStrobe")
         self.writer.addConnectionScalar("JTAGActive")
@@ -1859,15 +1866,17 @@ class FabricGenerator:
         self.writer.addNewLine()
         self.writer.addInstantiation(compName="tap",
                                      compInsName="tap_inst",
+                                     paramPairs=[("bsregInLen", BSR_in_length),
+                                                 ("bsregOutLen", BSR_out_length),],
                                      portsPairs=[("tck", "tck"),
                                                  ("tms", "tms"),
                                                  ("tdi", "tdi"),
                                                  ("tdo", "tdo"),
                                                  ("trst", "resetn"),
-                                                 ("pins_in", "pins_in"),
-                                                 ("pins_out", "pins_out"),
-                                                 ("logic_pins_in", "sys_pins_in"),
-                                                 ("logic_pins_out", "sys_pins_out"),
+                                                 ("pins_in", "O_top"),
+                                                 ("pins_out", "I_top"),
+                                                 ("logic_pins_in", "O_in"),
+                                                 ("logic_pins_out", "I_out"),
                                                  ("active", "JTAGActive"),
                                                  ("config_data", "JTAGWriteData"),
                                                  ("config_strobe", "JTAGWriteStrobe")])
@@ -1947,7 +1956,12 @@ class FabricGenerator:
         for name, group in sorted(portGroups.items(), key=lambda x:x[0]):
             for i, sig in enumerate(group[1]):
                 portList.append(sig)
-                signal.append(f"{name}[{i}]")
+                if "I_top" in name:
+                    signal.append(f"I_out[{i}]")
+                elif "O_top" in name:
+                    signal.append(f"O_in[{i}]")
+                else:
+                    signal.append(f"{name}[{i}]")
 
         portList.append("UserCLK")
         signal.append("CLK")

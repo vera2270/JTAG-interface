@@ -97,14 +97,17 @@ module bsr_cell ( // BC_1 with reset and enable
 	assign data_pout = 	(mode == 1'b0 & enableOut == 1'b1) ? data_pin : 
 						(mode == 1'b1 & enableOut == 1'b1) ? s3 : 1'b0;
 
-	always @(negedge reset, negedge clkDR, posedge updateDR) begin
-		if (reset == 1'b0) begin
+	always @(negedge reset, negedge clkDR) begin
+		if (reset == 1'b0)
 			s2 <= 1'b0;
-			s3 <= 1'b0;
-		end
-		else if (~clkDR)
+		else
 			s2 <= s1;
-		else if (updateDR)
+	end
+
+	always @(negedge reset, posedge updateDR) begin
+		if (reset == 1'b0)
+			s3 <= 1'b0;
+		else
 			s3 <= s2;
 	end
 endmodule
